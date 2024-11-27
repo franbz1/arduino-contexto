@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Control Panel</h1>
+    <div>
+        <button onclick="sendRequest('/connect')">Connect</button>
+        <button onclick="sendRequest('/play')">Play</button>
+        <button onclick="sendRequest('/pause')">Pause</button>
+        <button onclick="sendRequest('/next')">Next</button>
+        <button onclick="sendRequest('/previous')">Previous</button>
+        <button onclick="sendRequest('/disconnect')">Disconnect</button>
+    </div>
+    <p id="status"></p>
+    <script>
+        function sendRequest(endpoint) {
+            fetch(endpoint, { method: 'POST' })
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('status').innerText = data;
+                })
+                .catch(error => {
+                    document.getElementById('status').innerText = 'An error occurred: ' + error;
+                });
+        }
+    </script>
+</body>
+</html>
