@@ -3,43 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Control Panel</title>
+    <title>Control ESP32</title>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        let conectado = false;
+
+        // Función para realizar solicitudes a la API
+        async function enviarSolicitud(url, metodo = "GET", cuerpo = null) {
+            try {
+                const opciones = {
+                    method: metodo,
+                    headers: { "Content-Type": "application/json" },
+                };
+                if (cuerpo) {
+                    opciones.body = JSON.stringify(cuerpo);
+                }
+                const respuesta = await fetch(url, opciones);
+                const datos = await respuesta.json();
+                if (respuesta.ok) {
+                    mostrarMensaje(datos.estado || datos, "success");
+                } else {
+                    mostrarMensaje(datos.error || datos.estado || "Error desconocido", "error");
+                }
+                return datos;
+            } catch (error) {
+                mostrarMensaje(`Error: ${error}`, "error");
+                return null;
+            }
+        }
+
+        function actualizarEstado() {
+            const botones = document.querySelectorAll(".control-button");
+            botones.forEach(btn => {
+                btn.disabled = !conectado;
+            });
+            document.getElementById("estadoConexion").textContent = conectado
+                ? "Conectado"
+                : "Desconectado";
+            document.getElementById("estadoConexion").style.color = conectado
+                ? "green"
+                : "red";
+        }
+
+        async function conectar() {
+            const datos = await enviarSolicitud("/conectar", "GET");
+            if (datos && datos.estado.includes("Conexión iniciada")) {
+                conectado = true;
+                actualizarEstado();
+            }
+        }
+
+        async function desconectar() {
+            const datos = await enviarSolicitud("/desconectar", "GET");
+            if (datos && datos.estado.includes("Conexión cerrada")) {
+                conectado = false;
+                actualizarEstado();
+            }
+        }
+
+        async function play() {
+            const pista = document.getElementById("pista").value;
+            if (!pista) {
+                mostrarMensaje("Debes ingresar un número de pista", "error");
+                return;
+            }
+            await enviarSolicitud(`/play/${pista}`, "POST");
+        }
+
+        async function pause() {
+            await enviarSolicitud("/pause", "POST");
+        }
+
+        async function resume() {
+            await enviarSolicitud("/resume", "POST");
+        }
+
+        async function ajustarVolumen() {
+            const nivel = document.getElementById("volumen").value;
+            if (!nivel) {
+                mostrarMensaje("Debes seleccionar un nivel de volumen", "error");
+                return;
+            }
+            await enviarSolicitud("/volumen", "POST", { nivel: parseInt(nivel) });
+        }
+
+        async function obtenerStatus() {
+            const datos = await enviarSolicitud("/status", "GET");
+            if (datos) {
+                mostrarMensaje(
+                    `Estado: ${datos.estado || "Desconocido"}\nVolumen: ${datos.volumen || "Desconocido"}`,
+                    "success"
+                );
+            }
+        }
+
+        async function resetear() {
+            await enviarSolicitud("/reset", "POST");
+        }
+
+        function mostrarMensaje(mensaje, tipo) {
+            const resultado = document.getElementById("resultado");
+            resultado.textContent = mensaje;
+            resultado.className = tipo === "success" ? "mensaje success" : "mensaje error";
+        }
+
+        function actualizarVolumen(valor) {
+            document.getElementById("volumenValor").textContent = valor;
+        }
+    </script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
             padding: 20px;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        h1 {
+            text-align: center;
+            color: #555;
+        }
+        p {
+            text-align: center;
+            font-size: 1.1rem;
+            color: #666;
         }
         button {
-            margin: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 5px;
             padding: 10px 20px;
             font-size: 16px;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button i {
+            margin-right: 8px;
+        }
+        input {
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            width: calc(100% - 20px);
+            max-width: 300px;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+        }
+        .mensaje {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .mensaje.success {
+            border: 1px solid #28a745;
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .mensaje.error {
+            border: 1px solid #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .estado {
+            text-align: center;
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        @media (max-width: 600px) {
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+            input {
+                width: 100%;
+            }
+            .container {
+                padding: 15px;
+            }
         }
     </style>
 </head>
-<body>
-    <h1>ESP32 Control Panel</h1>
-    <div>
-        <button onclick="sendRequest('/connect')">Connect</button>
-        <button onclick="sendRequest('/play')">Play</button>
-        <button onclick="sendRequest('/pause')">Pause</button>
-        <button onclick="sendRequest('/next')">Next</button>
-        <button onclick="sendRequest('/previous')">Previous</button>
-        <button onclick="sendRequest('/disconnect')">Disconnect</button>
+<body onload="actualizarEstado()">
+    <div class="container">
+        <h1>Control ESP32</h1>
+        <p>Usa esta interfaz para enviar comandos al ESP32.</p>
+
+        <div class="estado">
+            Estado: <span id="estadoConexion">Desconectado</span>
+        </div>
+
+        <button onclick="conectar()"><i class="fas fa-plug"></i> Conectar</button>
+        <button onclick="desconectar()" class="control-button"><i class="fas fa-unlink"></i> Desconectar</button>
+
+        <label for="pista">Número de pista:</label>
+        <input type="number" id="pista" placeholder="Ejemplo: 1">
+        <button onclick="play()" class="control-button"><i class="fas fa-play"></i> Play</button>
+
+        <button onclick="pause()" class="control-button"><i class="fas fa-pause"></i> Pause</button>
+        <button onclick="resume()" class="control-button"><i class="fas fa-play-circle"></i> Resume</button>
+
+        <label for="volumen">Volumen (0-30):</label>
+        <div class="slider-container">
+            <input type="range" id="volumen" min="0" max="30" value="15" oninput="actualizarVolumen(this.value)">
+            <span id="volumenValor">15</span>
+        </div>
+        <button onclick="ajustarVolumen()" class="control-button"><i class="fas fa-volume-up"></i> Ajustar Volumen</button>
+
+        <button onclick="obtenerStatus()" class="control-button"><i class="fas fa-info-circle"></i> Obtener Estado</button>
+        <button onclick="resetear()" class="control-button"><i class="fas fa-sync"></i> Resetear ESP32</button>
+
+        <h2>Resultado</h2>
+        <pre id="resultado" class="mensaje">Esperando interacción...</pre>
     </div>
-    <p id="status"></p>
-    <script>
-        function sendRequest(endpoint) {
-            fetch(endpoint, { method: 'POST' })
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('status').innerText = data;
-                })
-                .catch(error => {
-                    document.getElementById('status').innerText = 'An error occurred: ' + error;
-                });
-        }
-    </script>
 </body>
 </html>
